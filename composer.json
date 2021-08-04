@@ -1,0 +1,34 @@
+{
+    "name": "widuu/think-api",
+    "description": "thinkphp6 api doc generation tool",
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "widuu",
+            "email": "admin@widuu.com"
+        }
+    ],
+    "require": {
+    	"php": ">=7.1.0",
+        "topthink/framework": "^6.0.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "think\\": "src"
+        },
+        "files": [
+            "src/helper.php"
+        ]
+    },
+    "extra": {
+        "think":{
+            "services":[
+                "think\\api\\Service"
+            ],
+            "config":{
+                "api": "src/config.php"
+            }
+        }
+    },
+    "minimum-stability": "dev"
+}
