@@ -40,9 +40,9 @@ class Annotations
                 // 方法名称
                 $methodName = $method->getName();
                 // 过滤掉方法
-                if(in_array($methodName, $methodFilter) || !$method->isPublic()) continue;
+                if(in_array($methodName, $methodFilter) || !$method->isPublic() || $method->isConstructor()) continue;
                 // 解析方法注解
-                $annotations['methods'][$methodName] = $this->parseAnnotations($method->getDocComment() ?: '');
+                $annotations['methods'][$methodName] = $this->parseAnnotations($method->getDocComment() ?: '') ?: [];
             }
             self::$annotations[$name] = $annotations;
         }
@@ -114,13 +114,12 @@ class Annotations
         // 去除注释头部和尾部 /**  */
         $document = substr($document, 3, -2);
         // 每行匹配获取注解
-        if (preg_match_all('/@(?<name>[A-Za-z_-]+)[\s\t]*\((?<args>.*)\)[\s\t]*\r?$/m', $document, $matches)) {
+        if (preg_match_all('/@(?<name>[A-Za-z_-]+)[\s\t]*\((?<args>(?:(?!\)).)*)\)\r?/s', $document, $matches)) {
             // 解析分析参数
             foreach ($matches['name'] as $k => $v){
-                $annotations[$v] = isset($matches['args'][$k]) ? $this->parseArgs($matches['args'][$k]) : [];
+                $annotations[$v][] = isset($matches['args'][$k]) ? $this->parseArgs($matches['args'][$k]) : [];
             }
         }
-
         return $annotations;
     }
 
@@ -131,6 +130,8 @@ class Annotations
      */
     protected function parseArgs(string $argements)
     {
+        // 换行处理
+        $argements = preg_replace('/^\s*\*/m', '', $argements);
         // 解析后的参数
         $params = [];
         // 字符串长度
@@ -157,18 +158,19 @@ class Annotations
         $flag = ['"', '"', '{', '}', ',', '='];
         // 循环字符串
         while ($cursor <= $len){
+            $prev_char = substr($argements, $cursor -1, 1);
             $char = substr($argements, $cursor++, 1);
-            // 譬如 'param' 或者 "params" 来解析参数开闭合
-            if($char == '\'' || $char == '"'){
+            // 譬如 "params" 来解析参数开闭合
+            if($prev_char !== '\\' && $char == '"'){
                 $delimiter = $char;
-                // ' 或者 " 开区间
+                // " 开区间
                 if (!$structure && empty($prevDelimiter) && empty($nextDelimiter)) {
                     $prevDelimiter = $nextDelimiter = $delimiter;
                     $val           = '';
                     $structure     = true;
                     $isTrim        = true;
                 }else{
-                    // ' 和 " 的闭合区间混乱使用错误，也就是禁止使用 api="'widuu'" 符号嵌套
+                    // 验证是否在闭合区间内
                     if($char != $nextDelimiter){
                         throw new \InvalidArgumentException(sprintf(
                             "Parse Error: enclosing error -> expected: [%s], given: [%s]",
