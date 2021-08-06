@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace think\api;
 
+use think\facade\Route;
+
 /**
  * Class Annotations
  * @package think\api
@@ -15,6 +17,79 @@ class Annotations
      * @var array
      */
     protected static $annotations = [];
+
+    /**
+     * 解析类库
+     * @param array $classes
+     * @param array $filter
+     * @return array
+     * @throws \ReflectionException
+     */
+    public function getApiClassAnnotations(array $classes, array $filter = [])
+    {
+        $annotations = ['class' => [], 'method' => []];
+        foreach ($classes as $class){
+            // 类不存在，直接跳过
+            if(!class_exists($class)) continue;
+            // 反射类
+            $reflectionClass = new \ReflectionClass($class);
+            // 解析反射文档
+            $classAnnotations = $this->getClassAnnotationsByReflection($reflectionClass);
+            // 内部文档隐藏的跳过
+            if(isset($classAnnotations['ApiInternal']) && $classAnnotations['ApiInternal'][0] == true) continue;
+            // 文档排序
+            if(!isset($classAnnotations['ApiWeigh'])) $classAnnotations['ApiWeigh'][0] = 0;
+            // Api 类标题
+            $classAnnotations['ApiTitle'][0]  = $this->parseTitle($classAnnotations, $reflectionClass->getDocComment(), $reflectionClass->getName());
+            // 去除空类库
+            $methodsAnnotations = $this->getMethodAnnotationsByReflectionClass($reflectionClass, $classAnnotations, $filter);
+            if($methodsAnnotations){
+                $annotations['class'][$class]  = $classAnnotations;
+                $annotations['method'][$class] = $methodsAnnotations;
+            }
+        }
+        return $annotations;
+    }
+
+    /**
+     * 获取方法级别
+     * @param \ReflectionClass $reflectionClass
+     * @param array $filter
+     * @return array
+     */
+    public function getMethodAnnotationsByReflectionClass(\ReflectionClass $reflectionClass, $classAnnotations = [], array $filter = [])
+    {
+        $reflectionMethods = $reflectionClass->getMethods();
+        $className        = $reflectionClass->getName();
+        $annotations      = [];
+        foreach ($reflectionMethods as $reflection){
+            if($reflection->isPublic() && !$reflection->isConstructor()) {
+                $methodName = $reflection->getName();
+                if(!isset(self::$annotations[$className][$methodName])){
+                    $methodAnnotations = $this->parseAnnotations($reflection->getDocComment() ?: '') ?: [];
+                    // 跳过内部方法
+                    if(isset($methodAnnotations['ApiInternal']) && $methodAnnotations['ApiInternal'][0] == true) continue;
+                    // 路由地址
+                    $methodAnnotations['ApiRoute'][0]  = isset($methodAnnotations['ApiRoute']) ? $methodAnnotations['ApiRoute'][0] : buildApiUrl($className .'/'. $methodName);
+                    // 解析 api 名称
+                    $methodAnnotations['ApiTitle'][0]  = isset($methodAnnotations['ApiTitle']) ? trim($methodAnnotations['ApiTitle'][0]) : $methodName;
+                    // 解析 api 方法
+                    $methodAnnotations['ApiMethod'][0] = isset($methodAnnotations['ApiMethod']) ? strtoupper($methodAnnotations['ApiMethod'][0]) : 'GET';
+                    // 权重
+                    $methodAnnotations['ApiWeigh'][0]  = isset($methodAnnotations['ApiWeigh']) ? intval($methodAnnotations['ApiWeigh'][0]) : 0;
+                    // 解析分组
+                    if (!isset($methodAnnotations['ApiSector'])) {
+                        $methodAnnotations['ApiSector'] = isset($classAnnotations['ApiSector']) ? $classAnnotations['ApiSector'] : $classAnnotations['ApiTitle'];
+                    }
+                    self::$annotations[$className][$methodName] = $methodAnnotations;
+                }else{
+                    $methodAnnotations = self::$annotations[$className][$methodName];
+                }
+                $annotations[$methodName] = $methodAnnotations;
+            }
+        }
+        return $annotations;
+    }
 
     /**
      * 获取类注解
@@ -47,6 +122,43 @@ class Annotations
             self::$annotations[$name] = $annotations;
         }
         return self::$annotations[$name];
+    }
+
+    /**
+     * 获取标题
+     * @param $annotation
+     * @param $document
+     * @param $className
+     * @return mixed|string
+     */
+    private function parseTitle($annotation, $document, $className)
+    {
+        // 存在标题直接返回
+        if(isset($annotation['ApiTitle'])) return $annotation['ApiTitle'][0];
+        // 解析文档
+        if (!isset($annotation['ApiTitle']) && !empty($document)) {
+            preg_match_all("/\*[\s]+(.*)(\\r\\n|\\r|\\n)/U", str_replace('/**', '', $document), $match);
+            $title = isset($match[1]) && isset($match[1][0]) ? $match[1][0] : '';
+            if(preg_match("/^[\x{4e00}-\x{9fa5}a-zA-Z0-9]+$/u", $title)) return $title;
+        }
+        // 如果为空
+        if(isset($annotation['ApiSector'])) return $annotation['ApiSector'][0];
+        // 全都没有返回类名字
+        return $className;
+    }
+
+    /**
+     * 通过反射类获取文档
+     * @param \ReflectionClass $reflectionClass
+     * @return array|mixed
+     */
+    public function getClassAnnotationsByReflection(\ReflectionClass $reflectionClass)
+    {
+        $className = $reflectionClass->getName();
+        if(!isset(self::$annotations[$className])){
+            self::$annotations[$className] = $this->parseAnnotations($reflectionClass->getDocComment() ?: '') ?: [];
+        }
+        return self::$annotations[$className];
     }
 
     /**

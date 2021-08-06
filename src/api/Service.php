@@ -4,6 +4,7 @@
 namespace think\api;
 
 use think\Api;
+use think\Route;
 use think\Service as BaseService;
 
 class Service extends BaseService
@@ -13,7 +14,8 @@ class Service extends BaseService
      * @var string[]
      */
     public $bind = [
-        'api' => Api::class
+        'api'         => Api::class,
+        'annotations' => Annotations::class
     ];
 
     /**
@@ -21,7 +23,17 @@ class Service extends BaseService
      */
     public function boot()
     {
-        dump($this->app->api);
+        // 注册路由
+        $rule = $this->app->config->get('api.api_route', '');
+        if(!empty($rule)){
+            $domain = $this->app->config->get('api.api_route_domain', '');
+            $this->registerRoutes(function (Route $route) use ($rule, $domain){
+                $r = $route->rule($rule, '\\think\\Api@render');
+                !empty($domain) && $r->domain($domain);
+            });
+        }
+
+        // 注册命令行
         $this->commands([
            'api:build' => Builder::class,
         ]);
