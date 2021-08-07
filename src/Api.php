@@ -34,11 +34,11 @@ class Api
      * 加载设置类库
      * @return array
      */
-    public function loadClasses(string $module = '',array $extendClasses = []): array
+    public function loadClasses(string $module = '', array $extendClasses = [], $cache = true): array
     {
         $classes    = $extendClasses ? $extendClasses : Config::get('api.extend_class', []);
         $moduleName = empty($module) ? Config::get('api.module_name', '') : $module;
-        $cacheName  = Config::get('api.api_cache_name', 'THINK_APIDOC_CACHE');
+        $cacheName  = Config::get('api.api_cache_name', '');
         // 是否安装了多模块
         $isInstall = \Composer\InstalledVersions::isInstalled('topthink/think-multi-app');
         if(!$isInstall){
@@ -46,7 +46,9 @@ class Api
             return [$class];
         }
         // 如果存在缓存从缓存读取
-        if(Cache::has($cacheName)) return Cache::get($cacheName, []);
+        if(!empty($cacheName)){
+            if(Cache::has($cacheName) && $cache) return Cache::get($cacheName, []);
+        }
         // 定义的模块名称
         if(!empty($moduleName)){
             $moduleDir = $this->app->getAppPath() . $moduleName. DIRECTORY_SEPARATOR . Config::get('route.controller_layer');
@@ -57,7 +59,7 @@ class Api
             }
         }
         // 设置缓存
-        Cache::set($cacheName, $classes);
+        !empty($cacheName) && Cache::set($cacheName, $classes);
         // 返回类库
         return $classes;
     }
@@ -160,7 +162,7 @@ class Api
                     'body'          => isset($method['ApiBody']) && is_array($method['ApiBody']) ? $method['ApiBody'][0] : '',
                     'headers'       => $this->parseHeader($method['ApiHeaders'] ?? []),
                     'params'        => $this->parseParams($method['ApiParams'] ?? []),
-                    'returnParams'  => $this->parseParams($method['ApiReturnHeaders'] ?? []),
+                    'returnParams'  => $this->parseParams($method['ApiReturnParams'] ?? []),
                     'returnHeaders' => $this->parseHeader($method['ApiReturnHeaders'] ?? [], true),
                     'sort'          => $method['ApiWeigh'][0],
                     'return'        => isset($method['ApiReturn']) && is_array($method['ApiReturn']) ? $method['ApiReturn'][0] : '',
@@ -215,7 +217,7 @@ class Api
      */
     public function getContent($module, $classes = [], $config = [])
     {
-        $lists  = $this->parseClass($this->loadClasses($module, $classes));
+        $lists  = $this->parseClass($this->loadClasses($module, $classes, false));
         return $this->app->view->fetch('index', ['lists' => $lists, 'config' => $config]);
     }
 }
