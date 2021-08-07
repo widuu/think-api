@@ -27,17 +27,24 @@ class Api
         $config              = config('view');
         $config['view_path'] = $viewPath;
         $this->app->config->set($config, 'view');
+        $this->app->lang->load( __DIR__ . DIRECTORY_SEPARATOR . 'lang' . DIRECTORY_SEPARATOR . 'zh-cn.php');
     }
 
     /**
      * 加载设置类库
      * @return array
      */
-    public function loadClasses(): array
+    public function loadClasses(string $module = '',array $extendClasses = []): array
     {
-        $classes    = Config::get('api.extend_class', []);
-        $moduleName = Config::get('api.module_name', '');
+        $classes    = $extendClasses ? $extendClasses : Config::get('api.extend_class', []);
+        $moduleName = empty($module) ? Config::get('api.module_name', '') : $module;
         $cacheName  = Config::get('api.api_cache_name', 'THINK_APIDOC_CACHE');
+        // 是否安装了多模块
+        $isInstall = \Composer\InstalledVersions::isInstalled('topthink/think-multi-app');
+        if(!$isInstall){
+            $class = $this->app->getNamespace() .'\\'. Config::get('route.controller_layer') . '\\' . $moduleName;
+            return [$class];
+        }
         // 如果存在缓存从缓存读取
         if(Cache::has($cacheName)) return Cache::get($cacheName, []);
         // 定义的模块名称
@@ -62,7 +69,7 @@ class Api
      */
     private function getCssStyle(string $method)
     {
-        $css = [ 'POST' => 'primary', 'GET' => 'success', 'PUT' => 'warning', 'DELETE' => 'danger', 'PATCH' => 'default', 'OPTIONS' => 'info'];
+        $css = [ 'POST' => 'success', 'GET' => 'primary', 'PUT' => 'warning', 'DELETE' => 'danger', 'PATCH' => 'default', 'OPTIONS' => 'info'];
         return $css[$method] ?? 'success';
     }
 
@@ -107,6 +114,11 @@ class Api
         return $headerslist;
     }
 
+    /**
+     * 解析所有类库
+     * @param array $classes
+     * @return array
+     */
     public function parseClass(array $classes)
     {
         $filter             = Config::get('api.api_method_fileter', []);
@@ -138,6 +150,8 @@ class Api
                 $list[$section][$name] = [
                     'id'            => $id,
                     'method'        => $method['ApiMethod'][0],
+                    'contentType'   => isset($method['ApiContentType']) ? $method['ApiContentType'][0] : '',
+                    'responseType'  => isset($method['ApiResponseType']) ? $method['ApiResponseType'][0] : '',
                     'style'         => $this->getCssStyle($method['ApiMethod'][0]),
                     'section'       => $section,
                     'url'           => $method['ApiRoute'][0],
@@ -182,12 +196,26 @@ class Api
         return $list;
     }
 
+    /**
+     * 输出末班
+     * @return mixed
+     */
     public function render()
     {
+        $lists  = $this->parseClass($this->loadClasses());
+        $config = Config::get('api', []);
+        return $this->app->view->fetch('index', ['lists' => $lists, 'config' => $config]);
+    }
 
-        $c = $this->loadClasses();
-        $d = $this->parseClass($c);
-        dump($d);
-        return $this->app->view->display('index', []);
+    /**
+     * @param $module
+     * @param array $classes
+     * @param $config
+     * @return mixed
+     */
+    public function getContent($module, $classes = [], $config = [])
+    {
+        $lists  = $this->parseClass($this->loadClasses($module, $classes));
+        return $this->app->view->fetch('index', ['lists' => $lists, 'config' => $config]);
     }
 }

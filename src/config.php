@@ -2,14 +2,14 @@
 
 return [
     // api 名称
-    'api_name'           => '',
+    'api_name'           => '测试的API文档',
     // api 接口请求地址
     'api_url'            => '',
     // api 作者
     'api_author'         => '',
     // 默认语言
     'api_language'       => 'zh-cn',
-    // 将哪个模块作为api使用
+    // 将哪个模块作为api使用,单模式下的 controller 名称
     'module_name'        => 'index',
     // api 路由
     'api_route'          => '/api',

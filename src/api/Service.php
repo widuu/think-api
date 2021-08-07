@@ -15,7 +15,7 @@ class Service extends BaseService
      */
     public $bind = [
         'api'         => Api::class,
-        'annotations' => Annotations::class
+        'annotations' => Annotations::class,
     ];
 
     /**
@@ -35,7 +35,7 @@ class Service extends BaseService
 
         // 注册命令行
         $this->commands([
-           'api:build' => Builder::class,
+           'api' => Builder::class,
         ]);
     }
 }

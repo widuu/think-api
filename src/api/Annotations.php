@@ -222,6 +222,9 @@ class Annotations
      */
     protected function parseAnnotations(string $document): array
     {
+        // 可能匹配错误信息
+        if(!$document) return [];
+
         $annotations = [];
         // 去除注释头部和尾部 /**  */
         $document = substr($document, 3, -2);
