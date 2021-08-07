@@ -66,14 +66,16 @@ class Annotations
             if($reflection->isPublic() && !$reflection->isConstructor()) {
                 $methodName = $reflection->getName();
                 if(!isset(self::$annotations[$className][$methodName])){
+                    // 获取文档
                     $document = $reflection->getDocComment();
+                    // 解析注解
                     $methodAnnotations = $this->parseAnnotations($document ?: '') ?: [];
                     // 跳过内部方法
                     if(isset($methodAnnotations['ApiInternal']) && $methodAnnotations['ApiInternal'][0] == true) continue;
                     // 路由地址
                     $methodAnnotations['ApiRoute'][0]  = isset($methodAnnotations['ApiRoute']) ? $methodAnnotations['ApiRoute'][0] : buildApiUrl($className .'/'. $methodName);
                     // 解析 api 名称
-                    $methodAnnotations['ApiTitle'][0]  = $this->parseTitle($methodAnnotations['ApiTitle'], $document, $methodName);
+                    $methodAnnotations['ApiTitle'][0]  = $this->parseTitle($methodAnnotations, $document, $methodName);
                     // 解析 api 方法
                     $methodAnnotations['ApiMethod'][0] = isset($methodAnnotations['ApiMethod']) ? strtoupper($methodAnnotations['ApiMethod'][0]) : 'GET';
                     // 权重

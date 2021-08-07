@@ -82,7 +82,7 @@ return [
 |@ApiParams|请求的参数，可以多个|@ApiParams(name="name", type="string", required=true, description="方法名字")|
 |@ApiReturnParams|返回参数说明，可以多个|@ApiReturnParams (name="code", type="integer", required=true, sample="0", description="返回的状态")|
 |@ApiReturnHeaders|返回头部，可以多个|@ApiReturnHeaders (name="token", type="integer", required=true, sample="xxxxxxxx")|
-|@ApiReturn|返回结果示例|@ApiReturn ("{'code':1,'msg':'返回成功','data':{'test':1}}")|
+|@ApiReturn|返回结果示例,json中使用"",因为会解析{}|@ApiReturn ("{'code':1,'msg':'返回成功','data':{'test':1}}")|
 |@ApiBody|body正文|@ApiBody ("body")|
 |@ApiWeigh|排序，数字越大，排序越靠上|@ApiWeigh(10)|
 
@@ -117,10 +117,10 @@ class Index
      * @ApiParams   (name="name", type="string", required=true, description="用户名")
      * @ApiReturnParams (name="code", type="integer", required=true, sample="0", description="返回的状态")
      * @ApiReturnHeaders (name="token", type="integer", required=true, sample="xxxxxxxx")
-     * @ApiReturn   ({
+     * @ApiReturn   ("{
      *  'code':'1',
      *  'mesg':'返回成功'
-     * })
+     * }")
      */
     public function index()
     {}
